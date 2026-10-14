@@ -1,0 +1,57 @@
+name: Windows build
+on:
+  push:
+    branches: [main, master]
+    tags: ['v*']
+  pull_request:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  build:
+    runs-on: windows-2022
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check source package
+        run: python scripts/check-package.py
+      - name: Build and stage
+        shell: pwsh
+        run: .github/scripts/Build-Windows.ps1 -Target x64 -Configuration Release
+      - name: Package plugin
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force package | Out-Null
+          Copy-Item release/Release/obs-companion/bin/64bit/obs-companion.dll package/
+          Copy-Item LICENSE, INSTALL.md, README.md, CHANGELOG.md package/
+          Copy-Item -Recurse audio package/
+          Copy-Item docs/RELEASE-NOTES.md package/
+          Compress-Archive -Path package/* -DestinationPath obs-companion-windows-x64.zip
+      - uses: actions/upload-artifact@v4
+        with:
+          name: obs-companion-windows-x64
+          path: obs-companion-windows-x64.zip
+          if-no-files-found: error
+  draft-release:
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: [build, reminder-tests]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: obs-companion-windows-x64
+      - uses: actions/checkout@v4
+      - name: Create draft release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: gh release create "$RELEASE_TAG" obs-companion-windows-x64.zip --draft --title "OBS Companion $RELEASE_TAG" --notes-file docs/RELEASE-NOTES.md
+  reminder-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: python3 scripts/check-package.py
+      - run: g++ -std=c++17 -Wall -Wextra -Werror tests/reminder-test.cpp -o /tmp/reminder-test && /tmp/reminder-test
+      - run: g++ -std=c++17 -Wall -Wextra -Werror tests/watchdog-test.cpp -o /tmp/watchdog-test && /tmp/watchdog-test

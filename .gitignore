@@ -1,0 +1,17 @@
+# Generated builds and dependencies only. Source files are tracked by default.
+/build_*/
+/build/
+/.deps/
+/release/
+/out/
+/.vs/
+CMakeUserPresets.json
+*.user
+*.pdb
+*.dll
+*.so
+*.dylib
+*.lock.json
+.DS_Store
+/cmake/.CMakeBuildNumber
+*.zip

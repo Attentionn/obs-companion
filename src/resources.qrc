@@ -1,0 +1,16 @@
+<RCC><qresource prefix="/companion">
+<file alias="sounds/black_screen.wav">../data/sounds/black_screen.wav</file>
+<file alias="sounds/desktop_silent.wav">../data/sounds/desktop_silent.wav</file>
+<file alias="sounds/frozen_screen.wav">../data/sounds/frozen_screen.wav</file>
+<file alias="sounds/mic_silent.wav">../data/sounds/mic_silent.wav</file>
+<file alias="sounds/mute.wav">../data/sounds/mute.wav</file>
+<file alias="sounds/reminder.wav">../data/sounds/reminder.wav</file>
+<file alias="sounds/replay.wav">../data/sounds/replay.wav</file>
+<file alias="sounds/replay_start.wav">../data/sounds/replay_start.wav</file>
+<file alias="sounds/replay_stop.wav">../data/sounds/replay_stop.wav</file>
+<file alias="sounds/unmute.wav">../data/sounds/unmute.wav</file>
+<file alias="i18n/en.json">../data/i18n/en.json</file>
+<file alias="i18n/es.json">../data/i18n/es.json</file>
+<file alias="i18n/fr.json">../data/i18n/fr.json</file>
+<file alias="i18n/zh.json">../data/i18n/zh.json</file>
+</qresource></RCC>
