@@ -1,5 +1,4 @@
-# OBS Companion 1.0.0
-
+# OBS Companion 1.0.0. Your OBS monitoring and notification toolkit.
 A free Windows x64 plugin for OBS Studio, created by **Nula / Attentionn**.
 
 ## Features
@@ -59,6 +58,14 @@ These folder names are independent of the interface's translation codes. See [au
 Extract `audio` to a permanent location of your choice. In **Tools → OBS Companion**, open the relevant tab → **Customize sounds**, choose an event, click **Browse**, select its WAV, then **Test** and **Apply**. Changing the interface language does not automatically select a voice pack. Leave the path blank to use the built-in tone. You can also use your own recordings.
 
 Custom sounds must be **16-bit PCM WAV**, mono or stereo, at most **4 MiB per file**. MP3 and 24/32-bit WAV are unsupported. Do not move files after selecting them. Sounds play through Windows's default output and may be captured by Desktop Audio; simultaneous alerts can interrupt one another.
+
+### Notification dock inside OBS
+
+Open **Tools → OBS Companion → General**, enable **Show notification panel inside OBS**, then click **Apply**.
+
+To show or hide the panel, go to **Docks → OBS Companion**. You can drag it to dock it alongside other OBS panels or leave it floating.
+
+The panel displays monitoring status, the 30 most recent notifications with timestamps, and pause/resume controls. Pausing shows a five-minute countdown.
 
 ## Experimental video monitoring
 
