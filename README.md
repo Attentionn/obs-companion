@@ -1,4 +1,5 @@
-# OBS Companion 1.0.0. Your OBS monitoring and notification toolkit.
+# OBS Companion 1.1.0
+
 A free Windows x64 plugin for OBS Studio, created by **Nula / Attentionn**.
 
 ## Features
@@ -7,7 +8,6 @@ A free Windows x64 plugin for OBS Studio, created by **Nula / Attentionn**.
 - Replay Buffer start and stop notifications.
 - Microphone mute/unmute sounds and timed muted reminders.
 - Optional microphone and desktop no-signal warnings with separate thresholds, delays and repeat intervals.
-- Experimental black-screen and unchanged-image monitoring.
 - Built-in notification tones, per-event volume and optional custom WAV files.
 - English, Spanish, French and Simplified Chinese interface translations.
 - An optional notification dock inside OBS, without desktop popups or a game overlay.
@@ -42,38 +42,25 @@ Duration-based checks run only while Replay Buffer or an unpaused recording is a
 
 Advanced settings and sound controls are collapsed to keep each tab readable. Default volumes are 100%; existing saved volume choices are preserved. Use the reset-all button if you want every sound at 100%.
 
-## Optional voice packs and custom sounds
+## Sound presets and custom WAVs
 
-Optional recordings created by **Nula / Attentionn using ElevenLabs**, with editing in FL Studio, can be kept in:
+In General → Sound presets, choose **Minimalist tones** or **Voices**. Voices can follow the interface language or use English, Spanish, French or Chinese independently. Unsupported automatic languages fall back to English. Click Apply to save without closing.
 
-| Folder | Language |
-| --- | --- |
-| `audio/en/` | English |
-| `audio/esp/` | Spanish |
-| `audio/fr/` | French |
-| `audio/cn/` | Chinese |
+Tones and all four voice packs are embedded in the DLL. No external audio/data folder is needed for installation. Voice recordings by **Nula / Attentionn**, generated with ElevenLabs and edited in FL Studio.
 
-These folder names are independent of the interface's translation codes. See [audio/README.md](audio/README.md) for exact filenames.
+A per-event custom WAV overrides the preset. Changing presets preserves custom paths, volumes and disabled sounds. **Use preset sound** clears that event’s custom path. Test previews the currently selected preset and language before Apply. If an embedded voice resource is unavailable, the embedded minimalist tone is used.
 
-Extract `audio` to a permanent location of your choice. In **Tools → OBS Companion**, open the relevant tab → **Customize sounds**, choose an event, click **Browse**, select its WAV, then **Test** and **Apply**. Changing the interface language does not automatically select a voice pack. Leave the path blank to use the built-in tone. You can also use your own recordings.
+Custom files may have any filename. They must be PCM16 WAV, mono/stereo, at most 4 MiB per file, and remain at their selected location. Sounds play through Windows’s default output and may enter Desktop Audio.
 
-Custom sounds must be **16-bit PCM WAV**, mono or stereo, at most **4 MiB per file**. MP3 and 24/32-bit WAV are unsupported. Do not move files after selecting them. Sounds play through Windows's default output and may be captured by Desktop Audio; simultaneous alerts can interrupt one another.
+**Restore sound defaults** selects minimalist tones, enables sounds, resets volumes to 100% and clears custom paths. **Reset all settings** also restores sources to None, disables optional signal monitors, resets intervals, selects English and disables the dock. Both require confirmation and then Apply/Save; Cancel discards staged resets. No WAV files are deleted. Applying a full reset also clears pause/history.
 
-### Notification dock inside OBS
+## OBS notification dock
 
-Open **Tools → OBS Companion → General**, enable **Show notification panel inside OBS**, then click **Apply**.
+Enable General → Show notification panel inside OBS and click Apply. Show/hide it under **Docks → OBS Companion**. Drag the panel to dock or float it. It shows up to 30 timestamped events, monitoring state and pause/resume controls.
 
-To show or hide the panel, go to **Docks → OBS Companion**. You can drag it to dock it alongside other OBS panels or leave it floating.
+## Video feature retirement
 
-The panel displays monitoring status, the 30 most recent notifications with timestamps, and pause/resume controls. Pausing shows a five-minute countdown.
-
-## Experimental video monitoring
-
-Black-screen and unchanged-image checks are **off by default and experimental**. They sample the final OBS output, not individual game sources. Dark scenes or static menus may trigger warnings, while moving overlays may hide a frozen game. These checks cannot confirm a capture failure.
-
-Default black detection requires 98% of sampled pixels at brightness 16/255 or below for 10 seconds. Unchanged-image detection uses an average brightness difference of 0.5/255 or below for 30 seconds. The default repeat interval is 60 seconds.
-
-To test: enable a video warning, click **Apply**, start Replay Buffer or recording, and show a full-frame black scene for the selected delay. The Video tab shows connection status, dark-pixel percentage and elapsed times. Missing frames are reported as a sampling problem, not automatically classified as a frozen image. Check **Help → Log Files → View Current Log** for `OBS Companion` diagnostics. Windows runtime confirmation and HDR testing remain outstanding.
+Black-screen and unchanged-image monitoring have been removed from the normal build. Old video settings are ignored and removed; no video sampling runs. Audio/replay monitoring is unchanged. The supplied black_screen/frozen_screen voice files are reserved for future experimental work and do not produce alerts in this version.
 
 ## Feedback and contact
 
@@ -95,7 +82,7 @@ No cryptocurrency payment address is currently published. The plugin is free to 
 
 See [docs/BUILDING.md](docs/BUILDING.md) for GitHub Actions and local Windows build instructions.
 
-The source repository must include `data`: those resources are needed at compile time even though users install only the DLL. The optional `audio` folder is distributed alongside the plugin ZIP and is not embedded in the DLL.
+The source repository must include `data`: those resources are needed at compile time even though users install only the DLL. All four `audio` language folders are embedded during compilation. Supply your recordings before building.
 
 ## License and credits
 

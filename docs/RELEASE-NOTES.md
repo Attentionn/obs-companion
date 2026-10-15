@@ -1,23 +1,12 @@
-# OBS Companion 1.0.0
+# OBS Companion 1.1.0
 
-Free Windows x64 OBS plugin with replay notifications, microphone mute reminders, optional microphone/desktop no-signal checks and an optional OBS notification dock.
+- Choose embedded minimalist tones or voices in English, Spanish, French and Chinese.
+- Voice language can follow the interface or be selected independently.
+- Custom WAV overrides, per-event volumes and enable switches remain available.
+- Restore sound defaults or reset all settings, with confirmation and Apply/Cancel controls. Files are never deleted.
+- Video detection is retired from this release; no video sampling runs.
 
-Settings include Apply without closing, a five-minute monitoring pause with countdown, custom WAV support and four interface languages.
-
-## Install
-
-Close OBS and copy `obs-companion.dll` directly into `obs-plugins/64bit/`. No separate data folder is needed. See INSTALL.md for details.
-
-## Optional voices
-
-Select your preferred recordings from `audio/en`, `audio/esp`, `audio/fr` or `audio/cn` under Customize sounds. Voice packs are selected manually; interface language does not switch the recordings.
-
-## Experimental features
-
-Black/unchanged output monitoring is experimental, off by default and may produce false alerts. It checks final OBS output, not each game source. Use the Video tab's live diagnostics when reporting issues.
-
-## Contact and support
+Close OBS and copy the DLL directly to obs-plugins/64bit/. External audio/data folders are unnecessary for embedded presets. Existing audio settings are preserved.
 
 Discord: `lvnula` · Email: `lvnula@proton.me`
-
-Donations are optional: [PayPal](https://www.paypal.com/paypalme/darioh07).
+Donations are optional: https://www.paypal.com/paypalme/darioh07

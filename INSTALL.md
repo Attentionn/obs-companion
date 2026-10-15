@@ -1,20 +1,18 @@
-# Installing OBS Companion 1.0.0
+# OBS Companion 1.1.0 installation
 
-1. Download the Windows x64 plugin ZIP from Releases, then close OBS.
-2. Copy `obs-companion.dll` directly to your OBS installation's `obs-plugins/64bit/` folder. Do not copy a containing folder.
-3. Open OBS → Tools → OBS Companion. Choose sources, test sounds and click Apply.
+Close OBS. Copy only `obs-companion.dll` directly into OBS’s `obs-plugins/64bit/` folder, replacing the previous DLL. Do not add a containing subfolder. Restart OBS and open Tools → OBS Companion.
 
-Example: `D:\SteamLibrary\steamapps\common\OBS Studio\obs-plugins\64bit\obs-companion.dll`
+No external data or audio folder is needed: minimalist tones, four voice packs and translations are embedded.
 
-No external data folder is required. Built-in sounds and translations are embedded.
+General → Sound presets: choose Minimalist tones or Voices, then choose a voice language or Follow interface language. Custom WAVs override the preset per event. Use preset sound removes the override. Apply saves without closing.
 
-Optional voices: keep `audio/en`, `audio/esp`, `audio/fr` or `audio/cn` in a permanent location. Select each WAV under Customize sounds → Browse → Test → Apply. This is manual; changing interface language does not change sounds. Keep custom files at their selected path.
+Custom files: PCM16 WAV, mono/stereo, up to 4 MiB each. Keep them at their selected location.
 
-Supported custom format: 16-bit PCM WAV, mono/stereo, up to 4 MiB per file.
+Restore sound defaults and Reset all settings require confirmation, then Apply to save. They never delete recordings. Cancel discards staged resets.
 
-Apply saves without closing. Save and close saves and exits. Pause monitoring shows a five-minute countdown; Resume all monitoring resumes immediately. Event-based replay and mute-change notifications remain active during the pause.
+For the dock, enable Show notification panel inside OBS → Apply, then Docks → OBS Companion.
 
-Black/unchanged output monitoring is experimental and disabled by default. Consult README.md for limits and testing instructions.
+Video detection is retired in this build. Replay and audio monitoring remain available.
 
-Contact: Discord `lvnula` · Email `lvnula@proton.me`
+Discord: `lvnula` · Email: `lvnula@proton.me`
 Optional donations: https://www.paypal.com/paypalme/darioh07

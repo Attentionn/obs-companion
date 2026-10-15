@@ -3,6 +3,18 @@ on:
   push:
     branches: [main, master]
     tags: ['v*']
+    paths:
+      - 'src/**'
+      - 'data/**'
+      - 'audio/**/*.wav'
+      - 'cmake/**'
+      - 'scripts/**'
+      - 'tests/**'
+      - '.github/**'
+      - 'CMakeLists.txt'
+      - 'CMakePresets.json'
+      - 'buildspec.json'
+      - '.gitignore'
   pull_request:
   workflow_dispatch:
 permissions:
@@ -23,7 +35,6 @@ jobs:
           New-Item -ItemType Directory -Force package | Out-Null
           Copy-Item release/Release/obs-companion/bin/64bit/obs-companion.dll package/
           Copy-Item LICENSE, INSTALL.md, README.md, CHANGELOG.md package/
-          Copy-Item -Recurse audio package/
           Copy-Item docs/RELEASE-NOTES.md package/
           Compress-Archive -Path package/* -DestinationPath obs-companion-windows-x64.zip
       - uses: actions/upload-artifact@v4
@@ -55,3 +66,4 @@ jobs:
       - run: python3 scripts/check-package.py
       - run: g++ -std=c++17 -Wall -Wextra -Werror tests/reminder-test.cpp -o /tmp/reminder-test && /tmp/reminder-test
       - run: g++ -std=c++17 -Wall -Wextra -Werror tests/watchdog-test.cpp -o /tmp/watchdog-test && /tmp/watchdog-test
+      - run: g++ -std=c++17 -Wall -Wextra -Werror tests/sound-preset-test.cpp -o /tmp/sound-preset-test && /tmp/sound-preset-test

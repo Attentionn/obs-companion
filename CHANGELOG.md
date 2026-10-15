@@ -1,5 +1,14 @@
 # Changelog
 
+## 1.1.0
+
+- Embedded multilingual voice presets alongside minimalist tones; independent voice/interface language and custom WAV overrides.
+- Sound-only and full-settings reset with confirmation and Apply/Cancel semantics.
+- Removed video detection, its settings tab and sampling from the normal build; legacy video settings are retired.
+- Added explicit notification dock instructions.
+- Documentation-only pushes no longer trigger Windows compilation; tags and manual builds remain supported.
+
+
 ## 1.0.0
 
 - Replay saved, Replay Buffer started and stopped notifications.

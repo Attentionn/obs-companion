@@ -112,5 +112,19 @@
   "OBS video output is unavailable. Start a recording or Replay Buffer.": "La sortie vidéo OBS est indisponible. Démarrez un enregistrement ou le Replay Buffer.",
   "OBS video output has invalid frame rate information.": "La sortie vidéo OBS a une fréquence d’images invalide.",
   "Could not connect to OBS video output. Check OBS log.": "Connexion à la sortie vidéo OBS impossible. Consultez le journal OBS.",
-  "Connecting to OBS video output…": "Connexion à la sortie vidéo OBS…"
+  "Connecting to OBS video output…": "Connexion à la sortie vidéo OBS…",
+  "Sound presets": "Préréglages audio",
+  "Minimalist tones": "Tonalités minimalistes",
+  "Voices": "Voix",
+  "Sound style": "Style audio",
+  "Follow interface language": "Suivre la langue de l’interface",
+  "Voice language": "Langue des voix",
+  "Restore sound defaults": "Réinitialiser les sons",
+  "Reset all settings": "Réinitialiser tous les réglages",
+  "Use preset sound": "Utiliser le son du préréglage",
+  "Preset sound (leave blank)": "Son du préréglage (laisser vide)",
+  "Custom WAV overrides the selected preset. Leave the path blank to use the preset.": "Le WAV personnalisé remplace le préréglage. Laissez le chemin vide pour utiliser le préréglage.",
+  "Custom WAV files take priority. Changing presets preserves custom files, volumes and disabled sounds.": "Les WAV personnalisés sont prioritaires. Changer de préréglage conserve les fichiers personnalisés, volumes et sons désactivés.",
+  "Reset sounds to minimalist tones at 100%, enable sounds and clear custom paths? Files will not be deleted. Apply to save.": "Rétablir les tonalités à 100 %, activer les sons et effacer les chemins personnalisés ? Aucun fichier ne sera supprimé. Appliquez pour enregistrer.",
+  "Restore all plugin settings? Custom files will not be deleted. Apply to save, or Cancel to discard.": "Réinitialiser tous les réglages du plugin ? Aucun fichier personnalisé ne sera supprimé. Appliquer enregistre ; Annuler abandonne."
 }

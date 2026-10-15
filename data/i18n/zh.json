@@ -112,5 +112,19 @@
   "OBS video output is unavailable. Start a recording or Replay Buffer.": "OBS 视频输出不可用。请开始录制或 Replay Buffer。",
   "OBS video output has invalid frame rate information.": "OBS 视频输出的帧率信息无效。",
   "Could not connect to OBS video output. Check OBS log.": "无法连接 OBS 视频输出。请查看 OBS 日志。",
-  "Connecting to OBS video output…": "正在连接 OBS 视频输出…"
+  "Connecting to OBS video output…": "正在连接 OBS 视频输出…",
+  "Sound presets": "声音预设",
+  "Minimalist tones": "简约提示音",
+  "Voices": "语音",
+  "Sound style": "声音风格",
+  "Follow interface language": "跟随界面语言",
+  "Voice language": "语音语言",
+  "Restore sound defaults": "恢复默认声音",
+  "Reset all settings": "重置所有设置",
+  "Use preset sound": "使用预设声音",
+  "Preset sound (leave blank)": "预设声音（留空）",
+  "Custom WAV overrides the selected preset. Leave the path blank to use the preset.": "自定义 WAV 优先于预设。留空路径可使用预设。",
+  "Custom WAV files take priority. Changing presets preserves custom files, volumes and disabled sounds.": "自定义 WAV 优先。更换预设会保留自定义文件、音量和已禁用的声音。",
+  "Reset sounds to minimalist tones at 100%, enable sounds and clear custom paths? Files will not be deleted. Apply to save.": "恢复 100% 音量的简约提示音、启用声音并清除自定义路径？不会删除文件。点击应用保存。",
+  "Restore all plugin settings? Custom files will not be deleted. Apply to save, or Cancel to discard.": "重置插件的所有设置？不会删除自定义文件。应用可保存，取消可放弃。"
 }

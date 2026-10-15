@@ -112,5 +112,19 @@
   "OBS video output is unavailable. Start a recording or Replay Buffer.": "OBS video output is unavailable. Start a recording or Replay Buffer.",
   "OBS video output has invalid frame rate information.": "OBS video output has invalid frame rate information.",
   "Could not connect to OBS video output. Check OBS log.": "Could not connect to OBS video output. Check OBS log.",
-  "Connecting to OBS video output…": "Connecting to OBS video output…"
+  "Connecting to OBS video output…": "Connecting to OBS video output…",
+  "Sound presets": "Sound presets",
+  "Minimalist tones": "Minimalist tones",
+  "Voices": "Voices",
+  "Sound style": "Sound style",
+  "Follow interface language": "Follow interface language",
+  "Voice language": "Voice language",
+  "Restore sound defaults": "Restore sound defaults",
+  "Reset all settings": "Reset all settings",
+  "Use preset sound": "Use preset sound",
+  "Preset sound (leave blank)": "Preset sound (leave blank)",
+  "Custom WAV overrides the selected preset. Leave the path blank to use the preset.": "Custom WAV overrides the selected preset. Leave the path blank to use the preset.",
+  "Custom WAV files take priority. Changing presets preserves custom files, volumes and disabled sounds.": "Custom WAV files take priority. Changing presets preserves custom files, volumes and disabled sounds.",
+  "Reset sounds to minimalist tones at 100%, enable sounds and clear custom paths? Files will not be deleted. Apply to save.": "Reset sounds to minimalist tones at 100%, enable sounds and clear custom paths? Files will not be deleted. Apply to save.",
+  "Restore all plugin settings? Custom files will not be deleted. Apply to save, or Cancel to discard.": "Restore all plugin settings? Custom files will not be deleted. Apply to save, or Cancel to discard."
 }

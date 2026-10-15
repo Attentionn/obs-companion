@@ -1,19 +1,10 @@
-# Optional voice packs
+# Embedded voice recordings
 
-Voice recordings by **Nula / Attentionn**, generated with ElevenLabs and edited in FL Studio, are included as ready-to-use options.
+Recordings by Nula / Attentionn, generated with ElevenLabs and edited in FL Studio.
 
-You can use these recordings, keep the plugin’s built-in tones, or choose your own compatible WAV files.
+The source folders are `audio/en`, `audio/esp`, `audio/fr`, and `audio/cn`. All four complete language packs are required when compiling. End users select the embedded presets and do not need external audio folders.
 
-## Languages
-
-- `en` — English
-- `esp` — Spanish
-- `fr` — French
-- `cn` — Chinese
-
-## Included sounds
-
-Each language folder contains:
+Each folder must contain these PCM16 mono/stereo WAV files (maximum 4 MiB each):
 
 - `replay.wav`
 - `mute.wav`
@@ -26,15 +17,6 @@ Each language folder contains:
 - `black_screen.wav`
 - `frozen_screen.wav`
 
-These filenames organize the included packs. Your own custom sounds can have any filename.
+All four packs are compiled into the DLL. Users select Minimalist tones or Voices in General → Sound presets. Voice language can follow the interface or be selected independently. Custom per-event WAVs with any filename remain supported and take priority.
 
-## How to use them
-
-1. Extract the audio folder to a permanent location.
-2. Open **Tools → OBS Companion** and select the relevant tab.
-3. Expand **Customize sounds** and choose an event.
-4. Click **Browse**, select its WAV file, then **Test** and **Apply**.
-
-Leave a sound path blank to use the built-in tone. Changing the interface language does not automatically change the sounds.
-
-Custom files must be **16-bit PCM WAV**, mono or stereo, up to **4 MiB per file**. Keep them at their selected location.
+black_screen and frozen_screen are reserved: video monitoring is retired from the normal build, so these two events are not exposed or played.

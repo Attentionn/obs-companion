@@ -32,12 +32,11 @@
 #include <QJsonDocument>
 #include <QJsonObject>
 #include <QScrollArea>
-#include <QDoubleSpinBox>
 #include <array>
 #include <algorithm>
 #include "reminder.hpp"
 #include "audio-watch.hpp"
-#include "video-watch.hpp"
+#include "sound-preset.hpp"
 #ifdef _WIN32
 #ifndef NOMINMAX
 #define NOMINMAX
@@ -62,7 +61,7 @@ class Companion : public QObject {
     Reminder reminder;
     std::array<Sound, 10> sounds;
     AudioWatch micWatch, desktopWatch;
-    VideoWatch videoWatch;
+    QString soundStyle="minimal", voiceLanguage="auto";
     QString language="en";
     QJsonObject translation;
     QString trText(const char *text) const { return translation.value(QString::fromUtf8(text)).toString(QString::fromUtf8(text)); }
@@ -85,7 +84,6 @@ class Companion : public QObject {
         settings.setValue(prefix+"/cooldown",watch.cooldown);
     }
     QLabel *status = nullptr;
-    QLabel *videoStatus = nullptr;
     bool panelEnabled=false;
     QPointer<QWidget> panel;
     QPointer<QListWidget> notifications;
@@ -119,14 +117,9 @@ public:
     Companion(const QString &path) : settings(path, QSettings::IniFormat) {
         language=settings.value("language","en").toString(); loadLanguage();
         readWatch(micWatch,"micSignal"); readWatch(desktopWatch,"desktopSignal");
-        videoWatch.blackEnabled=settings.value("video/black",false).toBool();
-        videoWatch.freezeEnabled=settings.value("video/freeze",false).toBool();
-        videoWatch.blackDelay=std::clamp(settings.value("video/blackDelay",10).toInt(),5,3600);
-        videoWatch.freezeDelay=std::clamp(settings.value("video/freezeDelay",30).toInt(),5,3600);
-        videoWatch.cooldown=std::clamp(settings.value("video/cooldown",60).toInt(),5,3600);
-        videoWatch.darkLevel=std::clamp(settings.value("video/darkLevel",16).toInt(),0,64);
-        videoWatch.darkPercent=std::clamp(settings.value("video/darkPercent",98).toInt(),50,100);
-        videoWatch.stillThreshold=std::clamp(settings.value("video/stillThreshold",0.5).toDouble(),0.0,10.0);
+        soundStyle=settings.value("soundStyle","minimal").toString();
+        voiceLanguage=settings.value("voiceLanguage","auto").toString();
+        settings.remove("video");
         enabled = settings.value("enabled", true).toBool();
         reminders = settings.value("reminders", true).toBool();
         mic = settings.value("microphone").toString();
@@ -147,12 +140,13 @@ public:
     ~Companion() override {
         panelEnabled=false; updatePanel();
         timer.stop();
-        videoWatch.stop(); micWatch.clear(); desktopWatch.clear();
+        micWatch.clear(); desktopWatch.clear();
 #ifdef _WIN32
         PlaySoundW(nullptr, nullptr, 0);
 #endif
     }
-    void play(size_t index, const Sound *test = nullptr, bool audible=true) {
+    void play(size_t index, const Sound *test = nullptr, bool audible=true,
+              const QString &previewStyle=QString(), const QString &previewVoice=QString(), const QString &previewLanguage=QString()) {
         const Sound &sound = test ? *test : sounds[index];
         if(!test) {
             if(!enabled) return;
@@ -160,7 +154,13 @@ public:
             if(!sound.enabled || !audible) return;
         }
         QString path = sound.path;
-        if (path.isEmpty()) path=QString(":/companion/sounds/")+keys[index]+".wav";
+        if(path.isEmpty()) {
+            const auto style=(previewStyle.isNull() ? soundStyle : previewStyle).toStdString();
+            const auto voice=(previewVoice.isNull() ? voiceLanguage : previewVoice).toStdString();
+            const auto ui=(previewLanguage.isNull() ? language : previewLanguage).toStdString();
+            path=QString::fromStdString(presetResource(style,voice,ui,obs_get_locale(),keys[index]));
+            if(!QFile::exists(path)) path=QString(":/companion/sounds/")+keys[index]+".wav";
+        }
         QFile file(path);
         if (!file.open(QIODevice::ReadOnly) || file.size() > 4 * 1024 * 1024) {
             soundError(test,"Cannot read WAV. Check its path and size (maximum 4 MiB)."); return;
@@ -217,7 +217,6 @@ public:
         if(status) status->setText(micState);
         pending[6]=micWatch.step(now(),active);
         pending[7]=desktopWatch.step(now(),active);
-        auto alerts=videoWatch.step(now(),active); pending[8]=alerts[0]; pending[9]=alerts[1];
         // Keep all visual events, but play only one sound per timer cycle.
         std::array<bool,10> soundEnabled{};
         for(size_t i=0;i<sounds.size();++i) soundEnabled[i]=sounds[i].enabled;
@@ -235,29 +234,15 @@ public:
         if(resumeButton) resumeButton->setVisible(remaining>0);
         if(panelPause) panelPause->setText(remaining>0 ? trText("Resume all monitoring") : trText("Pause all monitoring for 5 minutes"));
         if(panelStatus) panelStatus->setText(state+"\n"+micState);
-        if(videoStatus) {
-            auto sample=videoWatch.snapshot();
-            QString video=state;
-            if(active && (videoWatch.blackEnabled || videoWatch.freezeEnabled)) {
-                if(sample.state==VideoWatch::State::NoOutput) video=trText("OBS video output is unavailable. Start a recording or Replay Buffer.");
-                else if(sample.state==VideoWatch::State::InvalidInfo) video=trText("OBS video output has invalid frame rate information.");
-                else if(sample.state==VideoWatch::State::ConnectFailed) video=trText("Could not connect to OBS video output. Check OBS log.");
-                else if(!sample.connected) video=trText("Connecting to OBS video output…");
-                else if(!sample.fresh) video=trText("No recent video samples. Check OBS log.");
-                else video=trText("Receiving frames: dark pixels %1%; average change %2/255; black %3 s; static %4 s.")
-                    .arg(sample.dark,0,'f',1).arg(sample.change,0,'f',2).arg(sample.blackSeconds).arg(sample.staticSeconds);
-            }
-            videoStatus->setText(video);
-        }
     }
     void resetAudioTimers() { reminder.reset(); micWatch.alert.reset(); desktopWatch.alert.reset(); }
-    void resetCaptureTimer() { resetAudioTimers(); videoWatch.reset(); }
-    void shutdown() { timer.stop(); videoWatch.stop(); micWatch.clear(); desktopWatch.clear(); }
+    void resetCaptureTimer() { resetAudioTimers(); }
+    void shutdown() { timer.stop(); micWatch.clear(); desktopWatch.clear(); }
     void dialog() {
         if(dialogOpen) return;
         dialogOpen=true;
         QDialog window(static_cast<QWidget *>(obs_frontend_get_main_window()));
-        window.setWindowTitle("OBS Companion 1.0.0"); window.resize(820,640);
+        window.setWindowTitle("OBS Companion 1.1.0"); window.resize(820,640);
         auto *layout=new QVBoxLayout(&window); auto *tabs=new QTabWidget; layout->addWidget(tabs);
         auto tab=[&](const char *name) {
             auto *scroll=new QScrollArea; scroll->setWidgetResizable(true); auto *body=new QWidget;
@@ -301,18 +286,24 @@ public:
             v->setCurrentIndex(std::max(0,v->findData(selected))); form->addRow(trText(label),v); return v;
         };
         auto draft=sounds;
+        bool resetAllDraft=false;
+        QComboBox *styles=nullptr,*voiceLanguages=nullptr,*languages=nullptr;
+        std::array<QCheckBox *,10> soundSwitches{};
+        std::array<QLineEdit *,10> soundPaths{};
+        std::array<QSpinBox *,10> soundVolumes{};
         auto soundEditor=[&](QFormLayout *parent,std::initializer_list<size_t> indices) {
-            auto *form=advanced(parent,true); info(form,"Custom sounds are optional. Leave the path blank for the built-in sound.");
+            auto *form=advanced(parent,true); info(form,"Custom WAV overrides the selected preset. Leave the path blank to use the preset.");
             auto *select=new QComboBox; auto *stack=new QStackedWidget;
             for(size_t i:indices) {
                 select->addItem(trText(titles[i])); auto *page=new QWidget; auto *rows=new QFormLayout(page);
                 auto *on=toggle(rows,"Enable this sound",draft[i].enabled);
-                auto *path=new QLineEdit(draft[i].path); path->setPlaceholderText(trText("Built-in sound (leave blank)"));
+                auto *path=new QLineEdit(draft[i].path); path->setPlaceholderText(trText("Preset sound (leave blank)"));
                 auto *buttons=new QHBoxLayout; buttons->addWidget(path);
                 auto *browse=new QPushButton(trText("Browse")); buttons->addWidget(browse);
-                auto *reset=new QPushButton(trText("Use built-in")); buttons->addWidget(reset); rows->addRow(trText("Sound file"),buttons);
+                auto *reset=new QPushButton(trText("Use preset sound")); buttons->addWidget(reset); rows->addRow(trText("Sound file"),buttons);
                 auto *volume=spin(rows,"Volume",draft[i].volume,0,100,"%");
                 auto *test=new QPushButton(trText("Test")); rows->addRow(test);
+                soundSwitches[i]=on; soundPaths[i]=path; soundVolumes[i]=volume;
                 connect(on,&QCheckBox::toggled,&window,[&,i](bool value) { draft[i].enabled=value; });
                 connect(path,&QLineEdit::textChanged,&window,[&,i](const QString &value) { draft[i].path=value; });
                 connect(volume,qOverload<int>(&QSpinBox::valueChanged),&window,[&,i](int value) { draft[i].volume=value; });
@@ -321,17 +312,29 @@ public:
                     auto selected=QFileDialog::getOpenFileName(&window,trText("16-bit PCM WAV"),{},"WAV audio (*.wav)");
                     if(!selected.isEmpty()) path->setText(selected);
                 });
-                connect(test,&QPushButton::clicked,&window,[&,i] { play(i,&draft[i]); }); stack->addWidget(page);
+                connect(test,&QPushButton::clicked,&window,[&,i] { play(i,&draft[i],true,styles->currentData().toString(),voiceLanguages->currentData().toString(),languages->currentData().toString()); }); stack->addWidget(page);
             }
             form->addRow(trText("Choose notification sound"),select); form->addRow(stack);
             connect(select,qOverload<int>(&QComboBox::currentIndexChanged),stack,&QStackedWidget::setCurrentIndex);
         };
         auto *general=tab("General"); auto *preferences=group(general,"Preferences");
         auto *master=toggle(preferences,"Enable notifications",enabled);
-        auto *languages=new QComboBox; languages->addItem(trText("Follow OBS"),"auto"); languages->addItem("English","en");
+        languages=new QComboBox; languages->addItem(trText("Follow OBS"),"auto"); languages->addItem("English","en");
         languages->addItem(QString::fromUtf8("Español"),"es"); languages->addItem(QString::fromUtf8("中文（简体）"),"zh");
         languages->addItem(QString::fromUtf8("Français"),"fr"); languages->setCurrentIndex(std::max(0,languages->findData(language)));
         preferences->addRow(trText("Language (apply and reopen)"),languages);
+        auto *soundPreferences=group(general,"Sound presets");
+        styles=new QComboBox; styles->addItem(trText("Minimalist tones"),"minimal"); styles->addItem(trText("Voices"),"voice");
+        styles->setCurrentIndex(std::max(0,styles->findData(soundStyle))); soundPreferences->addRow(trText("Sound style"),styles);
+        voiceLanguages=new QComboBox; voiceLanguages->addItem(trText("Follow interface language"),"auto");
+        voiceLanguages->addItem("English","en"); voiceLanguages->addItem(QString::fromUtf8("Español"),"es");
+        voiceLanguages->addItem(QString::fromUtf8("Français"),"fr"); voiceLanguages->addItem(QString::fromUtf8("中文"),"zh");
+        voiceLanguages->setCurrentIndex(std::max(0,voiceLanguages->findData(voiceLanguage)));
+        soundPreferences->addRow(trText("Voice language"),voiceLanguages); voiceLanguages->setEnabled(styles->currentData()=="voice");
+        connect(styles,qOverload<int>(&QComboBox::currentIndexChanged),&window,[=] { voiceLanguages->setEnabled(styles->currentData()=="voice"); });
+        info(soundPreferences,"Custom WAV files take priority. Changing presets preserves custom files, volumes and disabled sounds.");
+        auto *restoreSounds=new QPushButton(trText("Restore sound defaults")); soundPreferences->addRow(restoreSounds);
+        auto *resetAll=new QPushButton(trText("Reset all settings")); soundPreferences->addRow(resetAll);
         auto *showPanel=toggle(preferences,"Show notification panel inside OBS",panelEnabled);
         info(preferences,"The panel stays inside OBS. No desktop popups or game overlay.");
         info(preferences,"You can disable individual sounds or pause monitoring if reminders become distracting.");
@@ -375,25 +378,30 @@ public:
         auto *desktopDelay=spin(desktopAdvanced,"No signal for",desktopWatch.delay,5,3600," s");
         auto *desktopRepeat=spin(desktopAdvanced,"Repeat warning every",desktopWatch.cooldown,5,3600," s");
         soundEditor(desktopForm,{7});
-        auto *videoTab=tab("Video"); auto *videoForm=group(videoTab,"Experimental video monitoring");
-        info(videoForm,"Experimental means this is a heuristic, not a confirmed capture failure. It may produce false alerts.");
-        auto *black=toggle(videoForm,"Warn when the recorded image stays black",videoWatch.blackEnabled);
-        auto *frozen=toggle(videoForm,"Warn when the recorded image stops changing",videoWatch.freezeEnabled);
-        info(videoForm,"A static menu is not necessarily frozen. Moving overlays may hide a frozen game. Checks use final OBS output, not the preview.");
-        info(videoForm,"Apply settings, start Replay Buffer or recording, and check the live diagnostic below. Test a full-frame black scene for at least the selected delay.");
-        auto *blackTime=spin(videoForm,"Black output for (seconds)",videoWatch.blackDelay,5,3600,"");
-        auto *freezeTime=spin(videoForm,"Unchanged output for (seconds)",videoWatch.freezeDelay,5,3600,"");
-        auto *videoRepeat=spin(videoForm,"Video warning interval (seconds)",videoWatch.cooldown,5,3600,"");
-        auto *videoAdvanced=advanced(videoForm); info(videoAdvanced,"Defaults suit most tests. Change sensitivity only if you understand these values.");
-        auto *blackLevel=spin(videoAdvanced,"Dark pixel level (0-255)",videoWatch.darkLevel,0,64,"");
-        auto *blackRatio=spin(videoAdvanced,"Required dark pixels (%)",videoWatch.darkPercent,50,100,"");
-        auto *still=new QDoubleSpinBox; still->setRange(0,10); still->setDecimals(2); still->setSingleStep(0.1);
-        still->setValue(videoWatch.stillThreshold); videoAdvanced->addRow(trText("Maximum average frame change (0-255)"),still);
-        auto *liveVideo=new QLabel; liveVideo->setWordWrap(true); videoStatus=liveVideo; videoForm->addRow(liveVideo);
-        soundEditor(videoForm,{8,9});
         connect(allVolume,&QPushButton::clicked,&window,[&,body=&window] {
             for(auto &sound:draft) sound.volume=100;
             for(auto *v:body->findChildren<QSpinBox *>()) if(v->suffix()=="%") v->setValue(100);
+        });
+        auto restoreSoundControls=[&] {
+            styles->setCurrentIndex(0); voiceLanguages->setCurrentIndex(0);
+            for(size_t i=0;i<draft.size();++i) {
+                draft[i]=Sound{};
+                if(soundSwitches[i]) soundSwitches[i]->setChecked(true);
+                if(soundPaths[i]) soundPaths[i]->clear();
+                if(soundVolumes[i]) soundVolumes[i]->setValue(100);
+            }
+        };
+        connect(restoreSounds,&QPushButton::clicked,&window,[&] {
+            if(QMessageBox::question(&window,trText("Restore sound defaults"),trText("Reset sounds to minimalist tones at 100%, enable sounds and clear custom paths? Files will not be deleted. Apply to save."),QMessageBox::Yes|QMessageBox::No,QMessageBox::No)==QMessageBox::Yes) restoreSoundControls();
+        });
+        connect(resetAll,&QPushButton::clicked,&window,[&] {
+            if(QMessageBox::question(&window,trText("Reset all settings"),trText("Restore all plugin settings? Custom files will not be deleted. Apply to save, or Cancel to discard."),QMessageBox::Yes|QMessageBox::No,QMessageBox::No)!=QMessageBox::Yes) return;
+            resetAllDraft=true; restoreSoundControls(); master->setChecked(true); remind->setChecked(true);
+            languages->setCurrentIndex(languages->findData("en")); showPanel->setChecked(false);
+            sources->setCurrentIndex(0); desktopSource->setCurrentIndex(0);
+            initial->setValue(60); interval->setValue(60); micSignal->setChecked(false); desktopSignal->setChecked(false);
+            micThreshold->setValue(-50); micDelay->setValue(30); micRepeat->setValue(60);
+            desktopThreshold->setValue(-50); desktopDelay->setValue(120); desktopRepeat->setValue(60);
         });
         tick();
         auto *buttons=new QDialogButtonBox(QDialogButtonBox::Save|QDialogButtonBox::Apply|QDialogButtonBox::Cancel);
@@ -402,19 +410,16 @@ public:
         layout->addWidget(buttons); connect(buttons,&QDialogButtonBox::accepted,&window,&QDialog::accept);
         connect(buttons,&QDialogButtonBox::rejected,&window,&QDialog::reject);
         auto applySettings=[&] {
+            if(resetAllDraft) { settings.clear(); pausedUntil=0; if(notifications) notifications->clear(); resetAllDraft=false; }
+            soundStyle=styles->currentData().toString(); voiceLanguage=voiceLanguages->currentData().toString();
+            settings.setValue("soundStyle",soundStyle); settings.setValue("voiceLanguage",voiceLanguage);
+            settings.remove("video");
             enabled=master->isChecked(); reminders=remind->isChecked(); mic=sources->currentData().toString();
             first=initial->value(); repeat=interval->value(); known=false;
             micWatch.clear(); micWatch.name=mic; micWatch.enabled=micSignal->isChecked();
             micWatch.threshold=micThreshold->value(); micWatch.delay=micDelay->value(); micWatch.cooldown=micRepeat->value();
             desktopWatch.clear(); desktopWatch.name=desktopSource->currentData().toString(); desktopWatch.enabled=desktopSignal->isChecked();
             desktopWatch.threshold=desktopThreshold->value(); desktopWatch.delay=desktopDelay->value(); desktopWatch.cooldown=desktopRepeat->value();
-            videoWatch.stop(); videoWatch.blackEnabled=black->isChecked(); videoWatch.freezeEnabled=frozen->isChecked();
-            videoWatch.blackDelay=blackTime->value(); videoWatch.freezeDelay=freezeTime->value(); videoWatch.cooldown=videoRepeat->value();
-            videoWatch.darkLevel=blackLevel->value(); videoWatch.darkPercent=blackRatio->value(); videoWatch.stillThreshold=still->value();
-            settings.setValue("video/black",videoWatch.blackEnabled); settings.setValue("video/freeze",videoWatch.freezeEnabled);
-            settings.setValue("video/blackDelay",videoWatch.blackDelay); settings.setValue("video/freezeDelay",videoWatch.freezeDelay);
-            settings.setValue("video/cooldown",videoWatch.cooldown); settings.setValue("video/darkLevel",videoWatch.darkLevel);
-            settings.setValue("video/darkPercent",videoWatch.darkPercent); settings.setValue("video/stillThreshold",videoWatch.stillThreshold);
             writeWatch(micWatch,"micSignal"); writeWatch(desktopWatch,"desktopSignal");
             settings.setValue("enabled",enabled); settings.setValue("reminders",reminders); settings.setValue("microphone",mic);
             settings.setValue("first",first); settings.setValue("repeat",repeat);
@@ -431,7 +436,7 @@ public:
         };
         connect(buttons->button(QDialogButtonBox::Apply),&QPushButton::clicked,&window,applySettings);
         if(window.exec()==QDialog::Accepted) applySettings();
-        status=nullptr; videoStatus=nullptr; monitorStatus=nullptr; pauseButton=nullptr; resumeButton=nullptr; dialogOpen=false;
+        status=nullptr; monitorStatus=nullptr; pauseButton=nullptr; resumeButton=nullptr; dialogOpen=false;
     }
 };
 Companion *companion = nullptr;
