@@ -3,7 +3,8 @@ param(
     [ValidateSet('x64')]
     [string] $Target = 'x64',
     [ValidateSet('Debug', 'RelWithDebInfo', 'Release', 'MinSizeRel')]
-    [string] $Configuration = 'RelWithDebInfo'
+    [string] $Configuration = 'RelWithDebInfo',
+    [switch] $Package
 )
 
 $ErrorActionPreference = 'Stop'
@@ -11,10 +12,6 @@ $ErrorActionPreference = 'Stop'
 if ( $DebugPreference -eq 'Continue' ) {
     $VerbosePreference = 'Continue'
     $InformationPreference = 'Continue'
-}
-
-if ( $env:CI -eq $null ) {
-    throw "Build-Windows.ps1 requires CI environment"
 }
 
 if ( ! ( [System.Environment]::Is64BitOperatingSystem ) ) {
@@ -36,6 +33,7 @@ function Build {
 
     $ScriptHome = $PSScriptRoot
     $ProjectRoot = Resolve-Path -Path "$PSScriptRoot/../.."
+    $ProductName = (Get-Content "$ProjectRoot/buildspec.json" -Raw | ConvertFrom-Json).name
 
     $UtilityFunctions = Get-ChildItem -Path $PSScriptRoot/utils.pwsh/*.ps1 -Recurse
 
@@ -47,7 +45,8 @@ function Build {
     Push-Location -Stack BuildTemp
     Ensure-Location $ProjectRoot
 
-    $CmakeArgs = @('--preset', "windows-ci-${Target}")
+    $Preset = if ($env:CI) { "windows-ci-${Target}" } else { "windows-${Target}" }
+    $CmakeArgs = @('--preset', $Preset)
     $CmakeBuildArgs = @('--build')
     $CmakeInstallArgs = @()
 
@@ -58,7 +57,7 @@ function Build {
     }
 
     $CmakeBuildArgs += @(
-        '--preset', "windows-${Target}"
+        '--preset', $Preset
         '--config', $Configuration
         '--parallel'
         '--', '/consoleLoggerParameters:Summary', '/noLogo'
@@ -78,6 +77,10 @@ function Build {
 
     Log-Group "Installing ${ProductName}..."
     Invoke-External cmake @CmakeInstallArgs
+
+    if ($Package) {
+        & "$PSScriptRoot/Package-Windows.ps1" -Target $Target -Configuration $Configuration
+    }
 
     Pop-Location -Stack BuildTemp
     Log-Group

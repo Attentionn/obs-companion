@@ -2,6 +2,9 @@
 
 ## 1.1.0
 
+- Scene switches, overlapping recording/replay sessions and unrelated settings changes preserve reminder timing. Microphone mute changes preserve the desktop silence timer.
+- Zero-volume alerts leave other audible notifications available during the same update.
+- Windows builds produce a single installable ZIP for local builds, Actions downloads and tagged releases.
 - Embedded multilingual voice presets alongside minimalist tones; independent voice/interface language and custom WAV overrides.
 - Sound-only and full-settings reset with confirmation and Apply/Cancel semantics.
 - Removed video detection, its settings tab and sampling from the normal build; legacy video settings are retired.

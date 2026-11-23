@@ -51,6 +51,11 @@ namespace {
 constexpr std::array<const char *, 10> keys{"replay", "mute", "unmute", "reminder", "replay_start", "replay_stop", "mic_silent", "desktop_silent", "black_screen", "frozen_screen"};
 constexpr std::array<const char *, 10> titles{"Replay saved", "Microphone muted", "Microphone unmuted", "Muted reminder", "Replay buffer started", "Replay buffer stopped", "Microphone: no signal", "Desktop: no signal", "Possible black screen", "Possible frozen capture"};
 struct Sound { QString path; int volume = 100; bool enabled = true; };
+bool captureActive()
+{
+    return obs_frontend_replay_buffer_active() ||
+           (obs_frontend_recording_active() && !obs_frontend_recording_paused());
+}
 class Companion : public QObject {
     QTimer timer;
     QSettings settings;
@@ -151,7 +156,7 @@ public:
         if(!test) {
             if(!enabled) return;
             notify(index);
-            if(!sound.enabled || !audible) return;
+            if(!sound.enabled || sound.volume == 0 || !audible) return;
         }
         QString path = sound.path;
         if(path.isEmpty()) {
@@ -183,9 +188,12 @@ public:
         if (!format || !audioStart || !audioSize || audioSize % 2) {
             soundError(test,"Use a mono/stereo 16-bit PCM WAV."); return;
         }
-        for (qsizetype i = audioStart; i < audioStart + audioSize; i += 2) {
-            const auto value = qFromLittleEndian<qint16>(reinterpret_cast<const uchar *>(data.constData() + i));
-            qToLittleEndian<qint16>(static_cast<qint16>(value * sound.volume / 100), reinterpret_cast<uchar *>(data.data() + i));
+        if (sound.volume != 100) {
+            auto *samples = reinterpret_cast<uchar *>(data.data()) + audioStart;
+            for (qsizetype i = 0; i < audioSize; i += 2) {
+                const auto value = qFromLittleEndian<qint16>(samples + i);
+                qToLittleEndian<qint16>(static_cast<qint16>(value * sound.volume / 100), samples + i);
+            }
         }
 #ifdef _WIN32
         PlaySoundW(nullptr, nullptr, 0); // Stop before replacing async buffer storage.
@@ -201,15 +209,14 @@ public:
         if(test) QMessageBox::warning(static_cast<QWidget *>(obs_frontend_get_main_window()),"OBS Companion",trText(message));
     }
     void tick() {
-        const bool capture=obs_frontend_replay_buffer_active() ||
-            (obs_frontend_recording_active() && !obs_frontend_recording_paused());
+        const bool capture=captureActive();
         const bool active=enabled && capture && now()>=pausedUntil;
         std::array<bool,10> pending{};
         obs_source_t *source=mic.isEmpty() ? nullptr : obs_get_source_by_name(mic.toUtf8().constData());
         QString micState=trText(mic.isEmpty() ? "None" : "Selected microphone is unavailable.");
         if(source) {
             bool muted=obs_source_muted(source); obs_source_release(source);
-            if(known && muted!=lastMuted) { pending[muted ? 1 : 2]=true; resetAudioTimers(); }
+            if(known && muted!=lastMuted) { pending[muted ? 1 : 2]=true; reminder.reset(); micWatch.alert.reset(); }
             known=true; lastMuted=muted;
             pending[3]=reminder.step(now(),active && reminders,muted,first,repeat);
             micState=trText(muted ? "Microphone is muted" : "Microphone is unmuted");
@@ -219,7 +226,7 @@ public:
         pending[7]=desktopWatch.step(now(),active);
         // Keep all visual events, but play only one sound per timer cycle.
         std::array<bool,10> soundEnabled{};
-        for(size_t i=0;i<sounds.size();++i) soundEnabled[i]=sounds[i].enabled;
+        for(size_t i=0;i<sounds.size();++i) soundEnabled[i]=sounds[i].enabled && sounds[i].volume > 0;
         auto audible=chooseAlert(pending,soundEnabled);
         for(size_t i=0;i<pending.size();++i) if(pending[i]) play(i,nullptr,audible && *audible==i);
         QString state;
@@ -235,8 +242,8 @@ public:
         if(panelPause) panelPause->setText(remaining>0 ? trText("Resume all monitoring") : trText("Pause all monitoring for 5 minutes"));
         if(panelStatus) panelStatus->setText(state+"\n"+micState);
     }
-    void resetAudioTimers() { reminder.reset(); micWatch.alert.reset(); desktopWatch.alert.reset(); }
-    void resetCaptureTimer() { resetAudioTimers(); }
+    void resetCaptureTimer() { reminder.reset(); micWatch.clear(); desktopWatch.clear(); }
+    void sceneCollectionChanged() { known=false; resetCaptureTimer(); }
     void shutdown() { timer.stop(); micWatch.clear(); desktopWatch.clear(); }
     void dialog() {
         if(dialogOpen) return;
@@ -410,16 +417,18 @@ public:
         layout->addWidget(buttons); connect(buttons,&QDialogButtonBox::accepted,&window,&QDialog::accept);
         connect(buttons,&QDialogButtonBox::rejected,&window,&QDialog::reject);
         auto applySettings=[&] {
-            if(resetAllDraft) { settings.clear(); pausedUntil=0; if(notifications) notifications->clear(); resetAllDraft=false; }
+            if(resetAllDraft) { settings.clear(); pausedUntil=0; if(notifications) notifications->clear(); sceneCollectionChanged(); resetAllDraft=false; }
             soundStyle=styles->currentData().toString(); voiceLanguage=voiceLanguages->currentData().toString();
             settings.setValue("soundStyle",soundStyle); settings.setValue("voiceLanguage",voiceLanguage);
             settings.remove("video");
-            enabled=master->isChecked(); reminders=remind->isChecked(); mic=sources->currentData().toString();
-            first=initial->value(); repeat=interval->value(); known=false;
-            micWatch.clear(); micWatch.name=mic; micWatch.enabled=micSignal->isChecked();
-            micWatch.threshold=micThreshold->value(); micWatch.delay=micDelay->value(); micWatch.cooldown=micRepeat->value();
-            desktopWatch.clear(); desktopWatch.name=desktopSource->currentData().toString(); desktopWatch.enabled=desktopSignal->isChecked();
-            desktopWatch.threshold=desktopThreshold->value(); desktopWatch.delay=desktopDelay->value(); desktopWatch.cooldown=desktopRepeat->value();
+            const auto selectedMic=sources->currentData().toString();
+            if (mic != selectedMic) known=false;
+            if (!known || first!=initial->value() || repeat!=interval->value()) reminder.reset();
+            enabled=master->isChecked(); reminders=remind->isChecked(); mic=selectedMic;
+            first=initial->value(); repeat=interval->value();
+            micWatch.configure(mic, micSignal->isChecked(), micThreshold->value(), micDelay->value(), micRepeat->value());
+            desktopWatch.configure(desktopSource->currentData().toString(), desktopSignal->isChecked(),
+                                   desktopThreshold->value(), desktopDelay->value(), desktopRepeat->value());
             writeWatch(micWatch,"micSignal"); writeWatch(desktopWatch,"desktopSignal");
             settings.setValue("enabled",enabled); settings.setValue("reminders",reminders); settings.setValue("microphone",mic);
             settings.setValue("first",first); settings.setValue("repeat",repeat);
@@ -430,7 +439,7 @@ public:
             }
             language=languages->currentData().toString(); settings.setValue("language",language); loadLanguage();
             panelEnabled=showPanel->isChecked(); settings.setValue("notificationPanel",panelEnabled); updatePanel();
-            resetCaptureTimer(); settings.sync();
+            settings.sync();
             if(settings.status()!=QSettings::NoError) QMessageBox::warning(&window,"OBS Companion",trText("Settings could not be saved."));
             tick();
         };
@@ -443,12 +452,11 @@ Companion *companion = nullptr;
 void event(obs_frontend_event e, void *) {
     if (!companion) return;
     if (e == OBS_FRONTEND_EVENT_EXIT) { companion->shutdown(); return; }
-    if (e == OBS_FRONTEND_EVENT_RECORDING_STARTED || e == OBS_FRONTEND_EVENT_RECORDING_STOPPED ||
-        e == OBS_FRONTEND_EVENT_RECORDING_PAUSED || e == OBS_FRONTEND_EVENT_RECORDING_UNPAUSED ||
-        e == OBS_FRONTEND_EVENT_REPLAY_BUFFER_STARTED || e == OBS_FRONTEND_EVENT_REPLAY_BUFFER_STOPPED)
+    if ((e == OBS_FRONTEND_EVENT_RECORDING_STOPPED || e == OBS_FRONTEND_EVENT_RECORDING_PAUSED ||
+         e == OBS_FRONTEND_EVENT_REPLAY_BUFFER_STOPPED) && !captureActive())
         QMetaObject::invokeMethod(companion, [] { if (companion) companion->resetCaptureTimer(); }, Qt::QueuedConnection);
-    if(e==OBS_FRONTEND_EVENT_SCENE_CHANGED || e==OBS_FRONTEND_EVENT_SCENE_COLLECTION_CHANGED)
-        QMetaObject::invokeMethod(companion,[] { if(companion) companion->resetCaptureTimer(); },Qt::QueuedConnection);
+    if(e==OBS_FRONTEND_EVENT_SCENE_COLLECTION_CHANGED)
+        QMetaObject::invokeMethod(companion,[] { if(companion) companion->sceneCollectionChanged(); },Qt::QueuedConnection);
     if(e==OBS_FRONTEND_EVENT_REPLAY_BUFFER_STARTED || e==OBS_FRONTEND_EVENT_REPLAY_BUFFER_STOPPED) {
         const size_t index=e==OBS_FRONTEND_EVENT_REPLAY_BUFFER_STARTED ? 4 : 5;
         QMetaObject::invokeMethod(companion,[index] { if(companion) companion->play(index); },Qt::QueuedConnection);

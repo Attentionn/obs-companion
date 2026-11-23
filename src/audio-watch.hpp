@@ -19,10 +19,20 @@ struct AudioWatch {
   float old=self->peak.load(); while(largest>old && !self->peak.compare_exchange_weak(old,largest)) {}
  }
  void clear() {
-  if(meter) obs_volmeter_detach_source(meter);
+  if(weak) obs_volmeter_detach_source(meter);
   if(weak) obs_weak_source_release(weak);
   weak=nullptr;
   peak.store(-1000); alert.reset();
+ }
+ void configure(const QString &sourceName, bool monitor, int thresholdDb, int delaySeconds, int repeatSeconds) {
+  if (name == sourceName && enabled == monitor && threshold == thresholdDb &&
+      delay == delaySeconds && cooldown == repeatSeconds) return;
+  clear();
+  name = sourceName;
+  enabled = monitor;
+  threshold = thresholdDb;
+  delay = delaySeconds;
+  cooldown = repeatSeconds;
  }
  // Called only on OBS's UI thread; callbacks only update the atomic peak.
  bool step(std::int64_t now,bool capture) {

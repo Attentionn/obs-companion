@@ -26,21 +26,13 @@ jobs:
       - uses: actions/checkout@v4
       - name: Check source package
         run: python scripts/check-package.py
-      - name: Build and stage
+      - name: Build and package
         shell: pwsh
-        run: .github/scripts/Build-Windows.ps1 -Target x64 -Configuration Release
-      - name: Package plugin
-        shell: pwsh
-        run: |
-          New-Item -ItemType Directory -Force package | Out-Null
-          Copy-Item release/Release/obs-companion/bin/64bit/obs-companion.dll package/
-          Copy-Item LICENSE, INSTALL.md, README.md, CHANGELOG.md package/
-          Copy-Item docs/RELEASE-NOTES.md package/
-          Compress-Archive -Path package/* -DestinationPath obs-companion-windows-x64.zip
-      - uses: actions/upload-artifact@v4
+        run: ./.github/scripts/Build-Windows.ps1 -Target x64 -Configuration Release -Package
+      - uses: actions/upload-artifact@v7
         with:
-          name: obs-companion-windows-x64
-          path: obs-companion-windows-x64.zip
+          path: release/obs-companion-windows-x64.zip
+          archive: false
           if-no-files-found: error
   draft-release:
     if: startsWith(github.ref, 'refs/tags/v')
@@ -49,16 +41,32 @@ jobs:
     permissions:
       contents: write
     steps:
-      - uses: actions/download-artifact@v4
-        with:
-          name: obs-companion-windows-x64
       - uses: actions/checkout@v4
-      - name: Create draft release
+      - uses: actions/download-artifact@v8
+        with:
+          name: obs-companion-windows-x64.zip
+          path: release
+          skip-decompress: true
+      - name: Verify and attach release package
         env:
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}
           RELEASE_TAG: ${{ github.ref_name }}
-        run: gh release create "$RELEASE_TAG" obs-companion-windows-x64.zip --draft --title "OBS Companion $RELEASE_TAG" --notes-file docs/RELEASE-NOTES.md
+        run: |
+          set -euo pipefail
+          test "$RELEASE_TAG" = "v$(jq -r .version buildspec.json)"
+          zip=release/obs-companion-windows-x64.zip
+          unzip -t "$zip"
+          unzip -Z1 "$zip" | grep -Fx 'obs-companion.dll'
+          if draft=$(gh release view "$RELEASE_TAG" --json isDraft --jq .isDraft); then
+            if [[ "$draft" != true ]]; then
+              echo "Release $RELEASE_TAG is already public."
+              exit 0
+            fi
+            gh release upload "$RELEASE_TAG" "$zip" --clobber
+          else
+            gh release create "$RELEASE_TAG" "$zip" --verify-tag --draft --title "OBS Companion $RELEASE_TAG" --notes-file docs/RELEASE-NOTES.md
+          fi
   reminder-tests:
     runs-on: ubuntu-latest
     steps:

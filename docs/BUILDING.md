@@ -1,36 +1,31 @@
-# Building and publishing 1.1.0
+# Building and publishing on Windows x64
 
-## GitHub Desktop and GitHub Actions
+## Build the release ZIP locally
 
-1. Preserve earlier development versions on your existing branch or repository.
-2. Put this source package's contents directly in the new repository root. Do not nest them inside another project folder.
-3. Keep `.github`, `cmake`, `build-aux`, `src`, `data`, `scripts`, `tests`, `docs`, `audio`, the CMake files, `buildspec.json`, `.gitignore`, license and public documentation.
-4. Add all 40 PCM16 WAV recordings under `audio/en`, `audio/esp`, `audio/fr` and `audio/cn` before building. Filenames are listed in audio/README.md. All recordings are embedded in the DLL.
-5. In GitHub Desktop, review Changes, commit and push to `main`.
-6. In GitHub, open Actions → Windows build → Run workflow → choose `main`. Wait for the Windows build and automated tests to succeed.
-7. Download the Windows x64 artifact. Test its DLL in OBS, including Apply, Cancel after a staged reset, both reset controls, pause/resume, replay events, audio checks, preset language selection and custom overrides.
-8. Create and push tag `v1.1.0` on the tested commit. The tag workflow builds again and prepares a draft Release with the compiled ZIP and the release notes.
-9. Review the draft, attach any additional permitted audio files if needed, and publish. The draft is not published automatically.
+Open a Visual Studio 2022 Developer PowerShell with PowerShell 7.2+, Git, CMake 3.30.5+, the x64 C++ tools and a Windows SDK 10.0.20348 or newer. The first build downloads the OBS 31.1.1 sources, Qt and OBS dependencies pinned in `buildspec.json`.
 
-The binary ZIP contains the DLL, license, installation instructions, README, changelog and release notes. No external voice folder is needed. GitHub also supplies source-code downloads separately.
-
-Use the clean package as the new public branch contents. Keep earlier development files in your archive branch. Do not copy old release ZIPs, build folders, local notes or state files into the new source root. Preserve build infrastructure and source resources.
-
-## Local Windows build
-
-Dependencies: Visual Studio 2022 C++ build tools, Windows SDK 10.0.22621, Git and CMake 3.30.5 or later. The template pins OBS 31.1.1 and its prebuilt dependencies.
+Run this command from the repository root:
 
 ```powershell
-python scripts/check-package.py
-cmake --preset windows-x64
-cmake --build --preset windows-x64 --config Release
-cmake --install build_x64 --config Release --prefix release/Release
+./.github/scripts/Build-Windows.ps1 -Target x64 -Configuration Release -Package
 ```
 
-The staged DLL is `release/Release/obs-companion/bin/64bit/obs-companion.dll`.
+The output is `release/obs-companion-windows-x64.zip`. Open it to find `obs-companion.dll`, the license, installation instructions, README, changelog and release notes at the top level. The four voice packs and translations are inside the DLL.
 
-Automated tests cover reminder timing, cooldown/reset and preset language/resource resolution. Syntax checks and core tests do not replace a Windows link/build or OBS runtime test.
+## Build in GitHub Actions
 
-Source-only checks without recordings: `python scripts/check-package.py --allow-missing-voices`. This does not compile Qt resources; normal CI requires all 40 real WAVs. No placeholder speech is included.
+Choose **Actions → Windows build → Run workflow**, select the branch and run it. With GitHub CLI, the equivalent from this checkout is:
 
-When updating an existing checkout, remove the retired `src/video-watch.hpp` and preserve your own `audio` recordings.
+```powershell
+gh workflow run windows.yml --ref main
+```
+
+Open that run, check the **build** and **reminder-tests** results, and download **obs-companion-windows-x64.zip** under **Artifacts**. It contains the same files as the local package.
+
+## Publish a tested commit
+
+1. Try the DLL in OBS. Check replay saved, mute/unmute, a timed reminder across scene changes, a voice preset and the notification dock. For the desktop silence check, toggle the microphone during the delay and confirm the desktop warning still fires on time.
+2. Push a version tag matching `buildspec.json` on the tested commit (for example, `v1.1.0`).
+3. The tag workflow runs the tests, builds the ZIP, checks the downloaded archive and attaches it to a draft release. Open the draft in **Releases**, review its notes and asset, select **Set as the latest release**, and publish.
+
+To check the source resources independently, run `python scripts/check-package.py` with Python 3.9+. It validates all four language catalogs and the embedded WAV files.
